@@ -14,6 +14,8 @@ public class UserServiceImpl implements UserService{
     UserRepository userRepository;
    @Autowired
     EmailService emailService;
+   @Autowired
+   TransactionService transactionService;
     @Override
     public BankResponse createAccount(UserRequest userRequest) {
 //        Creating an account - saving a new user into the db
@@ -109,6 +111,14 @@ public class UserServiceImpl implements UserService{
         User userToCredit = userRepository.findByAccountNumber(request.getAccountNumber());
         userToCredit.setAccountBalance(userToCredit.getAccountBalance().add(request.getAmount()));
         userRepository.save(userToCredit);
+        //Save transaction
+        TransactionDto transactionDto = TransactionDto.builder()
+                .accountNumber(userToCredit.getAccountNumber())
+                .transactionType("CREDIT")
+                .amount(request.getAmount())
+
+                .build();
+        transactionService.saveTransaction(transactionDto);
         return BankResponse.builder()
                 .responseCode(AccountUtils.ACCOUNT_CREDIT_SUCCESS)
                 .responseMessage(AccountUtils.ACCOUNT_CREDIT_SUCCESS_MESSAGE)
@@ -143,6 +153,13 @@ public class UserServiceImpl implements UserService{
         else {
             userToDebit.setAccountBalance(userToDebit.getAccountBalance().subtract(request.getAmount()));
             userRepository.save(userToDebit);
+            TransactionDto transactionDto = TransactionDto.builder()
+                    .accountNumber(userToDebit.getAccountNumber())
+                    .transactionType("DEBIT")
+                    .amount(request.getAmount())
+
+                    .build();
+            transactionService.saveTransaction(transactionDto);
             return BankResponse.builder()
                     .responseCode(AccountUtils.ACCOUNT_DEBITED_SUCCESS)
                     .responseMessage(AccountUtils.ACCOUNT_DEBITED_MESSAGE)
@@ -196,12 +213,20 @@ public class UserServiceImpl implements UserService{
                 .recipient(sourceAccountUser.getEmail())
                 .messageBody("The sum of "+request.getAmount()+"has been sent to your account from " + sourceUsername +"Your current balance is "+destinationAccountUser.getAccountBalance())
                 .build();
-        emailService.sendEmailAlert(debitAlert);
+        emailService.sendEmailAlert(creditAlert);
+        TransactionDto transactionDto = TransactionDto.builder()
+                .accountNumber(destinationAccountUser.getAccountNumber())
+                .transactionType("CREDIT")
+                .amount(request.getAmount())
+
+                .build();
+        transactionService.saveTransaction(transactionDto);
          return BankResponse.builder()
                  .responseCode(AccountUtils.TRANSFER_SUCCESSFUL_CODE)
                  .responseMessage(AccountUtils.TRANSFER_SUCCESSFUL_MESSAGE)
                  .accountInfo(null)
                  .build();
+
 
     }
 
