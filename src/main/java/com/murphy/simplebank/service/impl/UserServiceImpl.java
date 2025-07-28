@@ -201,7 +201,7 @@ public class UserServiceImpl implements UserService{
          EmailDetails debitAlert = EmailDetails.builder()
                  .subject("DEBIT ALERT")
                  .recipient(sourceAccountUser.getEmail())
-                 .messageBody("The sum of "+request.getAmount()+"has been deducted from your account! Your current balance is "+sourceAccountUser.getAccountBalance())
+                 .messageBody("The sum of "+request.getAmount()+" has been deducted from your account! Your current balance is "+sourceAccountUser.getAccountBalance())
                  .build();
          emailService.sendEmailAlert(debitAlert);
          User destinationAccountUser = userRepository.findByAccountNumber(request.getDestinationAccountNumber());
@@ -211,7 +211,7 @@ public class UserServiceImpl implements UserService{
          EmailDetails creditAlert = EmailDetails.builder()
                 .subject("CREDIT ALERT")
                 .recipient(sourceAccountUser.getEmail())
-                .messageBody("The sum of "+request.getAmount()+"has been sent to your account from " + sourceUsername +"Your current balance is "+destinationAccountUser.getAccountBalance())
+                .messageBody("The sum of "+request.getAmount()+" has been sent to your account from " + sourceUsername +" Your current balance is "+destinationAccountUser.getAccountBalance())
                 .build();
         emailService.sendEmailAlert(creditAlert);
         TransactionDto transactionDto = TransactionDto.builder()
