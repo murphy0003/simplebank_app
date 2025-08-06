@@ -15,15 +15,15 @@ public class UserRequest {
     @Schema(
             name = "User firstname"
     )
-    private String firstname;
+    private String firstName;
     @Schema(
             name = "User lastname"
     )
-    private String lastname;
+    private String lastName;
     @Schema(
             name = "User other name"
     )
-    private String othername;
+    private String otherName;
     @Schema(
             name = "User gender"
     )
@@ -40,6 +40,7 @@ public class UserRequest {
             name = "User email"
     )
     private String email;
+    private String password;
     @Schema(
             name = "User phone number"
     )

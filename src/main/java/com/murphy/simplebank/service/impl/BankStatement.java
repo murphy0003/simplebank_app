@@ -27,7 +27,7 @@ public class BankStatement {
     private EmailService emailService;
     private static final String FILE = "C:\\Lab\\MyStatement.pdf";
     /*
-    * retrieve list of transactions within a date range given a account number
+    * retrieve list of transactions within a date range given an account number
     * generate a pdf file of transactions
     * send the file via email
     * */
@@ -38,7 +38,7 @@ public class BankStatement {
         List<Transaction> transactionList = transactionRepository.findAll().stream().filter(transaction -> transaction.getAccountNumber().equals(accountNumber))
                 .filter(transaction -> transaction.getCreatedAt().isEqual(start)).filter(transaction -> transaction.getCreatedAt().isEqual(end)).toList();
         User user = userRepository.findByAccountNumber(accountNumber);
-        String customerName = user.getFirstname() +" "+ user.getLastname()+" "+user.getOthername();
+        String customerName = user.getFirstName() +" "+ user.getLastName()+" "+user.getOtherName();
         Document document = new Document(PageSize.A4, 40, 40, 50, 50); // Margins: L, R, T, B
         PdfWriter.getInstance(document, new FileOutputStream(FILE));
         document.open();

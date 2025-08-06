@@ -1,14 +1,22 @@
 package com.murphy.simplebank.service.impl;
 
+import com.murphy.simplebank.config.JwtTokenProvider;
 import com.murphy.simplebank.dto.*;
+import com.murphy.simplebank.entity.Role;
 import com.murphy.simplebank.entity.User;
 import com.murphy.simplebank.repository.UserRepository;
 import com.murphy.simplebank.utils.AccountUtils;
+import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 @Service
+@AllArgsConstructor
 public class UserServiceImpl implements UserService{
    @Autowired
     UserRepository userRepository;
@@ -16,6 +24,12 @@ public class UserServiceImpl implements UserService{
     EmailService emailService;
    @Autowired
    TransactionService transactionService;
+   @Autowired
+    PasswordEncoder passwordEncoder;
+   @Autowired
+    AuthenticationManager authenticationManager;
+   @Autowired
+    JwtTokenProvider jwtTokenProvider;
     @Override
     public BankResponse createAccount(UserRequest userRequest) {
 //        Creating an account - saving a new user into the db
@@ -29,18 +43,20 @@ public class UserServiceImpl implements UserService{
 
         }
         User newUser = User.builder()
-                .firstname(userRequest.getFirstname())
-                .lastname(userRequest.getLastname())
-                .othername(userRequest.getOthername())
+                .firstName(userRequest.getFirstName())
+                .lastName(userRequest.getLastName())
+                .otherName(userRequest.getOtherName())
                 .gender(userRequest.getGender())
                 .address(userRequest.getAddress())
                 .stateOfOrigin(userRequest.getStateOfOrigin())
                 .accountNumber(AccountUtils.generateAccountNumber())
                 .accountBalance(BigDecimal.ZERO)
                 .email(userRequest.getEmail())
+                .password(passwordEncoder.encode(userRequest.getPassword()))
                 .phoneNumber(userRequest.getPhoneNumber())
                 .alternativePhoneNumber(userRequest.getAlternativePhoneNumber())
                 .status("ACTIVE")
+                .role(Role.valueOf("ROLE_ADMIN"))
                 .build();
         User savedUser = userRepository.save(newUser);
         //Send email Alert
@@ -48,7 +64,7 @@ public class UserServiceImpl implements UserService{
                 .recipient(savedUser.getEmail())
                 .subject("ACCOUNT CREATION")
                 .messageBody("Congratulations Your Account Has been Successfully Created.\n Your account Detail:\n" +
-                        "Account Name :"+savedUser.getFirstname()+" "+savedUser.getLastname()+" "+savedUser.getOthername()+"\nAccount Number: "+savedUser.getAccountNumber())
+                        "Account Name :"+savedUser.getFirstName()+" "+savedUser.getLastName()+" "+savedUser.getOtherName()+"\nAccount Number: "+savedUser.getAccountNumber())
                 .build();
         emailService.sendEmailAlert(emailDetails);
 
@@ -58,11 +74,27 @@ public class UserServiceImpl implements UserService{
                 .accountInfo(AccountInfo.builder()
                         .accountBalance(savedUser.getAccountBalance())
                         .accountNumber(savedUser.getAccountNumber())
-                        .accountName(savedUser.getFirstname()+" "+savedUser.getLastname()+" "+savedUser.getOthername())
+                        .accountName(savedUser.getFirstName()+" "+savedUser.getLastName()+" "+savedUser.getOtherName())
                         .build())
                 .build();
     }
     //balance Enquiry, name Enquiry, credit,debit,transfer ,interest
+    public BankResponse login(LoginDto loginDto){
+        Authentication authentication = null;
+        authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(loginDto.getEmail(),loginDto.getPassword())
+        );
+        EmailDetails loginAlert = EmailDetails.builder()
+                .subject("You're logged in!")
+                .recipient(loginDto.getEmail())
+                .messageBody("You logged into your account. If you did not initiate this request, please contact your bank")
+                .build();
+        emailService.sendEmailAlert(loginAlert);
+        return BankResponse.builder()
+                .responseCode("Login Success")
+                .responseMessage(jwtTokenProvider.generateToken(authentication))
+                .build();
+    }
 
     @Override
     public BankResponse balanceEnquiry(EnquiryRequest request) {
@@ -82,7 +114,7 @@ public class UserServiceImpl implements UserService{
                 .accountInfo(AccountInfo.builder()
                         .accountBalance(foundUser.getAccountBalance())
                         .accountNumber(request.getAccountNumber())
-                        .accountName(foundUser.getFirstname()+" "+foundUser.getLastname()+" "+foundUser.getOthername())
+                        .accountName(foundUser.getFirstName()+" "+foundUser.getLastName()+" "+foundUser.getOtherName())
                         .build())
 
                 .build();
@@ -95,7 +127,7 @@ public class UserServiceImpl implements UserService{
             return AccountUtils.ACCOUNT_NOT_EXIST_MESSAGE;
         }
     User foundUser = userRepository.findByAccountNumber(request.getAccountNumber());
-    return foundUser.getFirstname()+" "+foundUser.getLastname()+" "+foundUser.getOthername();
+    return foundUser.getFirstName()+" "+foundUser.getLastName()+" "+foundUser.getOtherName();
     }
 
     @Override
@@ -123,7 +155,7 @@ public class UserServiceImpl implements UserService{
                 .responseCode(AccountUtils.ACCOUNT_CREDIT_SUCCESS)
                 .responseMessage(AccountUtils.ACCOUNT_CREDIT_SUCCESS_MESSAGE)
                 .accountInfo(AccountInfo.builder()
-                        .accountName(userToCredit.getFirstname()+" "+userToCredit.getLastname()+" "+userToCredit.getOthername())
+                        .accountName(userToCredit.getFirstName()+" "+userToCredit.getLastName()+" "+userToCredit.getOtherName())
                         .accountBalance(userToCredit.getAccountBalance())
                         .accountNumber(request.getAccountNumber())
                         .build())
@@ -164,7 +196,7 @@ public class UserServiceImpl implements UserService{
                     .responseCode(AccountUtils.ACCOUNT_DEBITED_SUCCESS)
                     .responseMessage(AccountUtils.ACCOUNT_DEBITED_MESSAGE)
                     .accountInfo(AccountInfo.builder()
-                            .accountName(userToDebit.getFirstname()+" "+userToDebit.getLastname()+" "+userToDebit.getOthername())
+                            .accountName(userToDebit.getFirstName()+" "+userToDebit.getLastName()+" "+userToDebit.getOtherName())
                             .accountBalance(userToDebit.getAccountBalance())
                             .accountNumber(request.getAccountNumber())
                             .build())
@@ -177,8 +209,7 @@ public class UserServiceImpl implements UserService{
 //       get the account to debit (check if it exists)
 //       check if the amount debiting is not more than the current balance
 //       debit the amount
-//       get the account to credit
-//       credit the account
+//       get the account and credit it
         boolean isDestinationAccountExist = userRepository.existsByAccountNumber(request.getDestinationAccountNumber());
         if(!isDestinationAccountExist) {
             return BankResponse.builder()
@@ -196,7 +227,7 @@ public class UserServiceImpl implements UserService{
                      .build();
          }
          sourceAccountUser.setAccountBalance(sourceAccountUser.getAccountBalance().subtract(request.getAmount()));
-         String sourceUsername = sourceAccountUser.getFirstname()+" "+sourceAccountUser.getLastname()+" "+sourceAccountUser.getOthername();
+         String sourceUsername = sourceAccountUser.getFirstName()+" "+sourceAccountUser.getLastName()+" "+sourceAccountUser.getOtherName();
          userRepository.save(sourceAccountUser);
          EmailDetails debitAlert = EmailDetails.builder()
                  .subject("DEBIT ALERT")
@@ -206,7 +237,7 @@ public class UserServiceImpl implements UserService{
          emailService.sendEmailAlert(debitAlert);
          User destinationAccountUser = userRepository.findByAccountNumber(request.getDestinationAccountNumber());
          destinationAccountUser.setAccountBalance(destinationAccountUser.getAccountBalance().add(request.getAmount()));
-//         String recipientUsername = destinationAccountUser.getFirstname()+" "+destinationAccountUser.getLastname()+" "+destinationAccountUser.getOthername();
+//         String recipientUsername = destinationAccountUser.getFirstname()+" "+destinationAccountUser.getLastname()+" "+destinationAccountUser.getOtherName();
          userRepository.save(destinationAccountUser);
          EmailDetails creditAlert = EmailDetails.builder()
                 .subject("CREDIT ALERT")
@@ -229,5 +260,6 @@ public class UserServiceImpl implements UserService{
 
 
     }
+
 
 }
