@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql-simplebank
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: simple_bank
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - simplebank-network
+
+  simplebank:
+    image:   simplebank-app:latest
+    container_name: simplebank_app
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/simple_bank
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_DATASOURCE_DRIVER-CLASS-NAME: com.mysql.cj.jdbc.Driver
+      SPRING_JPA_HIBERNATE_DDL-AUTO: update
+
+      # Email configuration for Spring Boot
+      SPRING_MAIL_HOST: smtp.gmail.com
+      SPRING_MAIL_PORT: 587
+      SPRING_MAIL_USERNAME: alaxzandaaungmyintmyat@gmail.com
+      SPRING_MAIL_PASSWORD: cuzwhxiorniidyww
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: true
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: true
+
+    depends_on:
+      - db
+    ports:
+      - "8080:8080"
+    networks:
+      - simplebank-network
+
+volumes:
+  mysql-data:
+
+networks:
+  simplebank-network:
+    driver: bridge
